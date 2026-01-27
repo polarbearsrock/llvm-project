@@ -23,11 +23,22 @@ ScheduleDAGInstrs *createHB32Scheduler(MachineSchedContext *C);
 
 /// Custom scheduler for HB32 Vanilla Core extending the generic scheduler
 class HB32Scheduler : public GenericScheduler {
+
+  enum Slot { None, Int, FP };                                                                                                                                                                                                                                                                                                                       
+                                                                                                                                                                                                                                                                                                                                                         
+  unsigned IntSlotIdx = 0;                                                                                                                                                                                                                                                                                                                              
+  unsigned FPSlotIdx = 0;                                                                                                                                                                                                                                                                                                                               
+  Slot LastSchedSlot = None;                                                                                                                                                                                                                                                                                                                         
+                                                                                                                                                                                                                                                                                                                                                        
+  Slot getSlot(SUnit *SU) const;  
+
 public:
-  HB32Scheduler(const MachineSchedContext *C): GenericScheduler(C) {}
-  SUnit *pickNode (bool &IsTopNode) override;
+  HB32Scheduler(const MachineSchedContext *C) : GenericScheduler(C) {}                                                                                                                                                                                                                                                                                  
+  void initialize(ScheduleDAGMI *dag) override;                                                                                                                                                                                                                                                                                                         
+  SUnit *pickNode(bool &IsTopNode) override;                                                                                                                                                                                                                                                                                                            
+  void schedNode(SUnit *SU, bool IsTopNode) override;
 };
 
 } // end namespace llvm
 
-#endif // LLVM_LIB_TARGET_RISCV_VANILLASCHEDULER_H
+#endif // LLVM_LIB_TARGET_RISCV_HB32SCHEDULER_H
