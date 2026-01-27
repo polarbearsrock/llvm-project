@@ -35,7 +35,7 @@ def HB32UnitIMul       : ProcResource<1> { let Super = HB32IntSlot; } // Int Mul
 def HB32UnitMem        : ProcResource<1> { let Super = HB32IntSlot; } // Load/Store
 def HB32UnitB          : ProcResource<1> { let Super = HB32IntSlot; } // Branch
 
-def HB32UnitFPALU      : ProcResource<1> { let Super = HB32IntSlot; } // FP ALU
+def HB32UnitFPALU      : ProcResource<1> { let Super = HB32FPSlot; } // FP ALU
 }
 
 let BufferSize = 1 in {
