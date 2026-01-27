@@ -107,6 +107,7 @@ private:
   unsigned ZvlLen = 0;
   unsigned RVVVectorBitsMin;
   unsigned RVVVectorBitsMax;
+  bool NoFdiv = false;
   uint8_t MaxInterleaveFactor = 2;
   RISCVABI::ABI TargetABI = RISCVABI::ABI_Unknown;
   std::bitset<RISCV::NUM_TARGET_REGS> UserReservedRegister;
@@ -341,7 +342,13 @@ public:
       return 2;
     return 1;
   }
+  
+  void adjustSchedDependency(SUnit *Def, int DefOpIdx,                                                                                                                                                                                                                                                     
+    SUnit *Use, int UseOpIdx,                                                                                                                                                                                                                                                     
+    SDep &Dep,                                                                                                                                                                                                                                                                    
+    const TargetSchedModel *SchedModel) const override;    
 
+  bool noFdiv() const { return NoFdiv; }
 protected:
   // SelectionDAGISel related APIs.
   std::unique_ptr<const SelectionDAGTargetInfo> TSInfo;

@@ -13,29 +13,34 @@
 // Hammerblade machine model for scheduling and other instruction cost heuristics.
 def HB32Model : SchedMachineModel {
   let MicroOpBufferSize = 0; // Explicitly set to zero since HB is in-order.
-  let IssueWidth = 1;        // 1 micro-ops can be issued per cycle.
+  let IssueWidth = 2;        // 2 micro-ops can be issued per cycle.
   let LoadLatency = 2;
   let MispredictPenalty = 3; //TODO(Emily): need to determine this value
-  let CompleteModel = true;     //TODO(Shwet): All instructions have been covered.
+  let CompleteModel = 0;     //TODO(Shwet): All instructions have been covered.
 }
 
 //===----------------------------------------------------------------------===//
 // Define each kind of processor resource and number available.
 
+// Define issue slots for integer and FP unit for now.
+// Reference TargetSchedule.td for usage of Super.
+ def HB32IntSlot : ProcResource<1> { let BufferSize = 0; }                                                                                                                                                                                                                                                                 
+ def HB32FPSlot  : ProcResource<1> { let BufferSize = 0; }
+
 // Modeling each pipeline as a ProcResource using the BufferSize = 0.
 
 let BufferSize = 0 in {
-def HB32UnitALU        : ProcResource<1>; // Int ALU
-def HB32UnitIMul       : ProcResource<1>; // Int Multiply
-def HB32UnitMem        : ProcResource<1>; // Load/Store
-def HB32UnitB          : ProcResource<1>; // Branch
+def HB32UnitALU        : ProcResource<1> { let Super = HB32IntSlot; } // Int ALU
+def HB32UnitIMul       : ProcResource<1> { let Super = HB32IntSlot; } // Int Multiply
+def HB32UnitMem        : ProcResource<1> { let Super = HB32IntSlot; } // Load/Store
+def HB32UnitB          : ProcResource<1> { let Super = HB32IntSlot; } // Branch
 
-def HB32UnitFPALU      : ProcResource<1>; // FP ALU
+def HB32UnitFPALU      : ProcResource<1> { let Super = HB32IntSlot; } // FP ALU
 }
 
 let BufferSize = 1 in {
-def HB32UnitIDiv       : ProcResource<1>; // Int Division
-def HB32UnitFPDivSqrt  : ProcResource<1>; // FP Divide/Sqrt
+def HB32UnitIDiv       : ProcResource<1> { let Super = HB32IntSlot; } // Int Division
+def HB32UnitFPDivSqrt  : ProcResource<1> { let Super = HB32FPSlot; } // FP Divide/Sqrt
 }
 
 //===----------------------------------------------------------------------===//
@@ -59,7 +64,7 @@ def : WriteRes<WriteShiftReg, [HB32UnitALU]>;
 // Integer multiply unit.
 def : WriteRes<WriteIMul, [HB32UnitIMul]> { 
   let Latency = 32; 
-  let ReleaseAtCycles = 1;
+  let ReleaseAtCycles = [1];
   }
 
 // 32-bit divides take 32+ cycles, TODO(Emily): we maybe want to determine worst case
@@ -135,7 +140,7 @@ def : WriteRes<WriteNop, []>;
 def : InstRW<[WriteIALU], (instrs COPY)>;
 
 //TODO(Emily): need to fill out the instructions we don't support
-let Unsupported = true in {
+let Unsupported = 1 in {
 def : WriteRes<WriteIALU32, []>;
 def : WriteRes<WriteShiftImm32, []>;
 def : WriteRes<WriteShiftReg32, []>;

@@ -41,6 +41,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Vectorize/LoopIdiomVectorize.h"
 #include <optional>
+#include "HB32Scheduler.h"
 using namespace llvm;
 
 static cl::opt<bool> EnableRedundantCopyElimination(
@@ -286,6 +287,12 @@ bool RISCVTargetMachine::isNoopAddrSpaceCast(unsigned SrcAS,
 ScheduleDAGInstrs *
 RISCVTargetMachine::createMachineScheduler(MachineSchedContext *C) const {
   const RISCVSubtarget &ST = C->MF->getSubtarget<RISCVSubtarget>();
+
+  // Use HB32 scheduler for HammerBlade Vanilla Subtarget.
+  if (ST.getCPU() == "hb-rv32") {                                                                                                                                                                                                                                                                        
+    return createHB32Scheduler(C);                                                                                                                                                                                                                                                                       
+  }   
+
   ScheduleDAGMILive *DAG = createSchedLive<RISCVPreRAMachineSchedStrategy>(C);
 
   if (ST.enableMISchedLoadClustering())

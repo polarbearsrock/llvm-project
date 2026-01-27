@@ -118,6 +118,10 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     ABI = Subtarget.is64Bit() ? RISCVABI::ABI_LP64 : RISCVABI::ABI_ILP32;
   }
 
+  if (Subtarget.noFdiv() && !(Subtarget.hasStdExtF() || Subtarget.hasStdExtD()))
+    errs() << "Machine attribute no-fdiv requires F or D extensions for FP "
+              "registers.\n";
+
   switch (ABI) {
   default:
     reportFatalUsageError("Don't know how to lower this ABI");
@@ -687,6 +691,13 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     } else {
       setOperationAction({ISD::FMAXIMUM, ISD::FMINIMUM}, MVT::f32, Custom);
     }
+
+    if (Subtarget.noFdiv()) {                                                                                                                                                                                                                                                                            
+      setOperationAction(ISD::FDIV, MVT::f32, Expand);                                                                                                                                                                                                                                                   
+      setOperationAction(ISD::FSQRT, MVT::f32, Expand);                                                                                                                                                                                                                                                  
+      setOperationAction(ISD::STRICT_FDIV, MVT::f32, Expand);                                                                                                                                                                                                                                            
+      setOperationAction(ISD::STRICT_FSQRT, MVT::f32, Expand);                                                                                                                                                                                                                                           
+    }  
   }
 
   if (Subtarget.hasStdExtFOrZfinx() && Subtarget.is64Bit())
@@ -738,6 +749,13 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::FP16_TO_FP, MVT::f64, Expand);
     setOperationAction(ISD::STRICT_FP_TO_FP16, MVT::f64, Custom);
     setOperationAction(ISD::STRICT_FP16_TO_FP, MVT::f64, Expand);
+      
+    if (Subtarget.noFdiv()) {
+      setOperationAction(ISD::FDIV, MVT::f64, Expand);
+      setOperationAction(ISD::FSQRT, MVT::f64, Expand);
+      setOperationAction(ISD::STRICT_FDIV, MVT::f64, Expand);
+      setOperationAction(ISD::STRICT_FSQRT, MVT::f64, Expand);
+    }
   }
 
   if (Subtarget.is64Bit()) {

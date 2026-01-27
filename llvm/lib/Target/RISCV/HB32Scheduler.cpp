@@ -33,7 +33,7 @@ static cl::opt<bool>
 /// Create custom scheduler if HB32Sched is enabled on the command line.
 ScheduleDAGInstrs *llvm::createHB32Scheduler(MachineSchedContext *C) {
   if (HB32Sched) {
-    return new ScheduleDAGMILive(C, std::make_unique<HB32Scheduler>(C));
+    return createSchedLive<HB32Scheduler>(C);
   }
 
   // NULL selects default machine scheduler
