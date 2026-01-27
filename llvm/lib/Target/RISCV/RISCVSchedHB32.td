@@ -16,7 +16,7 @@ def HB32Model : SchedMachineModel {
   let IssueWidth = 1;        // 1 micro-ops can be issued per cycle.
   let LoadLatency = 2;
   let MispredictPenalty = 3; //TODO(Emily): need to determine this value
-  let CompleteModel = false;     //TODO(Emily): need to remove this if all instr. covered
+  let CompleteModel = true;     //TODO(Shwet): All instructions have been covered.
 }
 
 //===----------------------------------------------------------------------===//
@@ -118,6 +118,17 @@ let Latency = 4 in {
   def : WriteRes<WriteFMA32, [HB32UnitFPALU]>;
 }
 
+// TODO(Shwet): Verify.
+def : WriteRes<WriteFDiv32, [HB32UnitFPDivSqrt]> {                                                                                                                                                                                                                                                       
+  let Latency = 32;                                                                                                                                                                                                                                                                                      
+  let ReleaseAtCycles = [32];                                                                                                                                                                                                                                                                            
+}     
+
+def : WriteRes<WriteFSqrt32, [HB32UnitFPDivSqrt]> {                                                                                                                                                                                                                                                      
+  let Latency = 32;                                                                                                                                                                                                                                                                                      
+  let ReleaseAtCycles = [32];                                                                                                                                                                                                                                                                            
+}
+
 def : WriteRes<WriteNop, []>;
 
 // Occupy ALU for COPY MIR instructions.
@@ -133,8 +144,6 @@ def : WriteRes<WriteIDiv32, []>;
 def : WriteRes<WriteIRem32, []>;   
 def : WriteRes<WriteSTD, []>;
 def : WriteRes<WriteLDD, []>;
-def : WriteRes<WriteFDiv32, []>;
-def : WriteRes<WriteFSqrt32, []>;
 def : WriteRes<WriteAtomicD, []>;
 def : WriteRes<WriteAtomicLDD, []>;
 def : WriteRes<WriteAtomicSTD, []>;
