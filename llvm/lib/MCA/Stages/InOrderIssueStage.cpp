@@ -138,17 +138,17 @@ bool InOrderIssueStage::canExecute(const InstRef &IR) {
     return false;
   }
 
-  if (LastWriteBackCycle) {
-    if (!IR.getInstruction()->getRetireOOO()) {
-      unsigned NextWriteBackCycle = findFirstWriteBackCycle(IR);
-      // Delay the instruction to ensure that writes happen in program order.
-      if (NextWriteBackCycle < LastWriteBackCycle) {
-        SI.update(IR, LastWriteBackCycle - NextWriteBackCycle,
-                  StallInfo::StallKind::DELAY);
-        return false;
-      }
-    }
-  }
+  // if (LastWriteBackCycle) {
+  //   if (!IR.getInstruction()->getRetireOOO()) {
+  //     unsigned NextWriteBackCycle = findFirstWriteBackCycle(IR);
+  //     // Delay the instruction to ensure that writes happen in program order.
+  //     if (NextWriteBackCycle < LastWriteBackCycle) {
+  //       SI.update(IR, LastWriteBackCycle - NextWriteBackCycle,
+  //                 StallInfo::StallKind::DELAY);
+  //       return false;
+  //     }
+  //   }
+  // }
 
   return true;
 }
@@ -271,8 +271,8 @@ llvm::Error InOrderIssueStage::tryIssue(InstRef &IR) {
 
   IssuedInst.push_back(IR);
 
-  if (!IR.getInstruction()->getRetireOOO())
-    LastWriteBackCycle = IS.getCyclesLeft();
+  // if (!IR.getInstruction()->getRetireOOO())
+  //   LastWriteBackCycle = IS.getCyclesLeft();
 
   return llvm::ErrorSuccess();
 }
@@ -440,8 +440,8 @@ llvm::Error InOrderIssueStage::cycleEnd() {
   PRF.cycleEnd();
   SI.cycleEnd();
 
-  if (LastWriteBackCycle > 0)
-    --LastWriteBackCycle;
+  // if (LastWriteBackCycle > 0)
+  //   --LastWriteBackCycle;
 
   return llvm::ErrorSuccess();
 }

@@ -15,7 +15,7 @@ def HB32Model : SchedMachineModel {
   let MicroOpBufferSize = 0; // Explicitly set to zero since HB is in-order.
   let IssueWidth = 2;        // 2 micro-ops can be issued per cycle.
   let LoadLatency = 2;
-  let MispredictPenalty = 3; //TODO(Emily): need to determine this value
+  let MispredictPenalty = 2; // IF + ID squashed
   let CompleteModel = 0;     //TODO(Shwet): All instructions have been covered.
 }
 
@@ -63,7 +63,7 @@ def : WriteRes<WriteShiftReg, [HB32UnitALU]>;
 
 // Integer multiply unit.
 def : WriteRes<WriteIMul, [HB32UnitIMul]> { 
-  let Latency = 32; 
+  let Latency = 2; 
   let ReleaseAtCycles = [1];
   }
 
@@ -84,41 +84,46 @@ def : WriteRes<WriteSTH, [HB32UnitMem]>;
 def : WriteRes<WriteSTW, [HB32UnitMem]>;
 def : WriteRes<WriteFST32, [HB32UnitMem]>;
 
-let Latency = 3 in {
-def : WriteRes<WriteLDB, [HB32UnitMem]>;
-def : WriteRes<WriteLDH, [HB32UnitMem]>;
+let Latency = 1 in {
 def : WriteRes<WriteCSR, [HB32UnitALU]>;
 }
 
-let Latency = 2 in {
-def : WriteRes<WriteLDW, [HB32UnitMem]>;
-def : WriteRes<WriteFLD32, [HB32UnitMem]>;
+let Latency = 3 in {
+  def : WriteRes<WriteFMovI32ToF32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFLD32, [HB32UnitMem]>;
+}
 
-def : WriteRes<WriteAtomicW, [HB32UnitMem]>;
-def : WriteRes<WriteAtomicLDW, [HB32UnitMem]>;
+let Latency = 2 in {
+  def : WriteRes<WriteLDW, [HB32UnitMem]>;
+  def : WriteRes<WriteLDB, [HB32UnitMem]>;
+  def : WriteRes<WriteLDH, [HB32UnitMem]>;
+
+  def : WriteRes<WriteAtomicW, [HB32UnitMem]>;
+  def : WriteRes<WriteAtomicLDW, [HB32UnitMem]>;
 }
 
 def : WriteRes<WriteAtomicSTW, [HB32UnitMem]>;
 
-// Most FP single precision operations are 4 cycles
-let Latency = 4 in {
+// Most FP single precision operations are 3 cycles
+let Latency = 3 in {
   def : WriteRes<WriteFAdd32, [HB32UnitFPALU]>;
   def : WriteRes<WriteFSGNJ32, [HB32UnitFPALU]>;
   def : WriteRes<WriteFMinMax32, [HB32UnitFPALU]>;
 }
 
 let Latency = 2 in {
-def : WriteRes<WriteFCvtI32ToF32, [HB32UnitFPALU]>;
-def : WriteRes<WriteFCvtF32ToI32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFCvtF32ToI32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFClass32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFCmp32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFMovF32ToI32, [HB32UnitFPALU]>;
+}
 
-def : WriteRes<WriteFClass32, [HB32UnitFPALU]>;
-def : WriteRes<WriteFCmp32, [HB32UnitFPALU]>;
-def : WriteRes<WriteFMovF32ToI32, [HB32UnitFPALU]>;
-def : WriteRes<WriteFMovI32ToF32, [HB32UnitFPALU]>;
+let Latency = 3 in {
+def : WriteRes<WriteFCvtI32ToF32, [HB32UnitFPALU]>;
 }
 
 //FPU takes 4 cycles (TODO: confirm this)
-let Latency = 4 in {
+let Latency = 3 in {
   def : WriteRes<WriteFMul32, [HB32UnitFPALU]>;
   def : WriteRes<WriteFMA32, [HB32UnitFPALU]>;
 }
