@@ -1,4 +1,4 @@
-//==- RISCVSchedHB32.td - Hammerblade Scheduling Definitions -*- tablegen -*-=//
+//==- RISCVSchedHB32Dual.td - Hammerblade Dual-Issue Scheduling -*- tablegen -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,10 +10,10 @@
 // The following definitions describe the simpler per-operand machine model.
 // This works with MachineScheduler. See MCSchedule.h for details.
 
-// Hammerblade single-issue machine model for scheduling and other instruction cost heuristics.
-def HB32Model : SchedMachineModel {
+// Hammerblade dual-issue machine model for scheduling and other instruction cost heuristics.
+def HB32DualModel : SchedMachineModel {
   let MicroOpBufferSize = 0; // Explicitly set to zero since HB is in-order.
-  let IssueWidth = 1;        // 1 micro-op can be issued per cycle.
+  let IssueWidth = 2;        // 2 micro-ops can be issued per cycle.
   let LoadLatency = 2;
   let MispredictPenalty = 2; // IF + ID squashed
   let CompleteModel = 0;     //TODO(Shwet): All instructions have been covered.
@@ -22,114 +22,119 @@ def HB32Model : SchedMachineModel {
 //===----------------------------------------------------------------------===//
 // Define each kind of processor resource and number available.
 
+// Define issue slots for integer and FP unit for now.
+// Reference TargetSchedule.td for usage of Super.
+ def HB32DualIntSlot : ProcResource<1> { let BufferSize = 0; }
+ def HB32DualFPSlot  : ProcResource<1> { let BufferSize = 0; }
+
 // Modeling each pipeline as a ProcResource using the BufferSize = 0.
 
 let BufferSize = 0 in {
-def HB32UnitALU        : ProcResource<1>; // Int ALU
-def HB32UnitIMul       : ProcResource<1>; // Int Multiply
-def HB32UnitMem        : ProcResource<1>; // Load/Store
-def HB32UnitB          : ProcResource<1>; // Branch
+def HB32DualUnitALU        : ProcResource<1> { let Super = HB32DualIntSlot; } // Int ALU
+def HB32DualUnitIMul       : ProcResource<1> { let Super = HB32DualIntSlot; } // Int Multiply
+def HB32DualUnitMem        : ProcResource<1> { let Super = HB32DualIntSlot; } // Load/Store
+def HB32DualUnitB          : ProcResource<1> { let Super = HB32DualIntSlot; } // Branch
 
-def HB32UnitFPALU      : ProcResource<1>; // FP ALU
+def HB32DualUnitFPALU      : ProcResource<1> { let Super = HB32DualFPSlot; } // FP ALU
 }
 
 let BufferSize = 1 in {
-def HB32UnitIDiv       : ProcResource<1>; // Int Division
-def HB32UnitFPDivSqrt  : ProcResource<1>; // FP Divide/Sqrt
+def HB32DualUnitIDiv       : ProcResource<1> { let Super = HB32DualIntSlot; } // Int Division
+def HB32DualUnitFPDivSqrt  : ProcResource<1> { let Super = HB32DualFPSlot; } // FP Divide/Sqrt
 }
 
 //===----------------------------------------------------------------------===//
 // Subtarget-specific SchedWrite types which both map the ProcResources and
 // set the latency.
 
-let SchedModel = HB32Model in {
+let SchedModel = HB32DualModel in {
 
-def : WriteRes<WriteJmp, [HB32UnitB]>;
-def : WriteRes<WriteJal, [HB32UnitB]>;
-def : WriteRes<WriteJalr, [HB32UnitB]>;
+def : WriteRes<WriteJmp, [HB32DualUnitB]>;
+def : WriteRes<WriteJal, [HB32DualUnitB]>;
+def : WriteRes<WriteJalr, [HB32DualUnitB]>;
 
 // ALU Ops.
 
-def : WriteRes<WriteIALU, [HB32UnitALU]>;
+def : WriteRes<WriteIALU, [HB32DualUnitALU]>;
 
-// Shift ops.
-def : WriteRes<WriteShiftImm, [HB32UnitALU]>;
-def : WriteRes<WriteShiftReg, [HB32UnitALU]>;
+// Shift ops. Same comment as above.
+def : WriteRes<WriteShiftImm, [HB32DualUnitALU]>;
+def : WriteRes<WriteShiftReg, [HB32DualUnitALU]>;
 
 // Integer multiply unit.
-def : WriteRes<WriteIMul, [HB32UnitIMul]> {
+def : WriteRes<WriteIMul, [HB32DualUnitIMul]> {
   let Latency = 2;
   let ReleaseAtCycles = [1];
   }
 
 // 32-bit divides take 32+ cycles, TODO(Emily): we maybe want to determine worst case
-def : WriteRes<WriteIDiv, [HB32UnitIDiv]> {
+def : WriteRes<WriteIDiv, [HB32DualUnitIDiv]> {
   let Latency = 32;
   let ReleaseAtCycles = [32];
 }
 
-def : WriteRes<WriteIRem, [HB32UnitIDiv]> {
+def : WriteRes<WriteIRem, [HB32DualUnitIDiv]> {
   let Latency = 32;
   let ReleaseAtCycles = [32];
 }
 
 // Memory
-def : WriteRes<WriteSTB, [HB32UnitMem]>;
-def : WriteRes<WriteSTH, [HB32UnitMem]>;
-def : WriteRes<WriteSTW, [HB32UnitMem]>;
-def : WriteRes<WriteFST32, [HB32UnitMem]>;
+def : WriteRes<WriteSTB, [HB32DualUnitMem]>;
+def : WriteRes<WriteSTH, [HB32DualUnitMem]>;
+def : WriteRes<WriteSTW, [HB32DualUnitMem]>;
+def : WriteRes<WriteFST32, [HB32DualUnitMem]>;
 
 let Latency = 1 in {
-def : WriteRes<WriteCSR, [HB32UnitALU]>;
+def : WriteRes<WriteCSR, [HB32DualUnitALU]>;
 }
 
 let Latency = 3 in {
-  def : WriteRes<WriteFMovI32ToF32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFLD32, [HB32UnitMem]>;
+  def : WriteRes<WriteFMovI32ToF32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFLD32, [HB32DualUnitMem]>;
 }
 
 let Latency = 2 in {
-  def : WriteRes<WriteLDW, [HB32UnitMem]>;
-  def : WriteRes<WriteLDB, [HB32UnitMem]>;
-  def : WriteRes<WriteLDH, [HB32UnitMem]>;
+  def : WriteRes<WriteLDW, [HB32DualUnitMem]>;
+  def : WriteRes<WriteLDB, [HB32DualUnitMem]>;
+  def : WriteRes<WriteLDH, [HB32DualUnitMem]>;
 
-  def : WriteRes<WriteAtomicW, [HB32UnitMem]>;
-  def : WriteRes<WriteAtomicLDW, [HB32UnitMem]>;
+  def : WriteRes<WriteAtomicW, [HB32DualUnitMem]>;
+  def : WriteRes<WriteAtomicLDW, [HB32DualUnitMem]>;
 }
 
-def : WriteRes<WriteAtomicSTW, [HB32UnitMem]>;
+def : WriteRes<WriteAtomicSTW, [HB32DualUnitMem]>;
 
 // Most FP single precision operations are 3 cycles
 let Latency = 3 in {
-  def : WriteRes<WriteFAdd32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFSGNJ32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFMinMax32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFAdd32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFSGNJ32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFMinMax32, [HB32DualUnitFPALU]>;
 }
 
 let Latency = 2 in {
-  def : WriteRes<WriteFCvtF32ToI32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFClass32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFCmp32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFMovF32ToI32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFCvtF32ToI32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFClass32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFCmp32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFMovF32ToI32, [HB32DualUnitFPALU]>;
 }
 
 let Latency = 3 in {
-def : WriteRes<WriteFCvtI32ToF32, [HB32UnitFPALU]>;
+def : WriteRes<WriteFCvtI32ToF32, [HB32DualUnitFPALU]>;
 }
 
 //FPU takes 4 cycles (TODO: confirm this)
 let Latency = 3 in {
-  def : WriteRes<WriteFMul32, [HB32UnitFPALU]>;
-  def : WriteRes<WriteFMA32, [HB32UnitFPALU]>;
+  def : WriteRes<WriteFMul32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFMA32, [HB32DualUnitFPALU]>;
 }
 
 // TODO(Shwet): Verify.
-def : WriteRes<WriteFDiv32, [HB32UnitFPDivSqrt]> {
+def : WriteRes<WriteFDiv32, [HB32DualUnitFPDivSqrt]> {
   let Latency = 32;
   let ReleaseAtCycles = [32];
 }
 
-def : WriteRes<WriteFSqrt32, [HB32UnitFPDivSqrt]> {
+def : WriteRes<WriteFSqrt32, [HB32DualUnitFPDivSqrt]> {
   let Latency = 32;
   let ReleaseAtCycles = [32];
 }

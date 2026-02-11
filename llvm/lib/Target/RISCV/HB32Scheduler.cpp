@@ -19,20 +19,26 @@
 #include "llvm/CodeGen/MachineScheduler.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/MC/MCSchedule.h"                                                                                                                                                                                                                                                                      
-#include "llvm/ADT/ArrayRef.h"  
+#include "llvm/MC/MCSchedule.h"
+#include "llvm/ADT/ArrayRef.h"
 
 using namespace llvm;
 
 #define DEBUG_TYPE "machine-scheduler"
 
-/// Flag to enable custom scheduler for HB32 Vanilla core
+/// Flag to enable custom scheduler for HB32 single-issue Vanilla core
 static cl::opt<bool>
     HB32Sched("hb32sched",
               cl::desc("Enable HB32 Vanilla Core's custom scheduler"),
               cl::init(false), cl::Hidden);
 
-/// Create custom scheduler if HB32Sched is enabled on the command line.
+/// Flag to enable custom scheduler for HB32 dual-issue Vanilla core
+static cl::opt<bool>
+    HB32DualSched("hb32-dual-sched",
+                  cl::desc("Enable HB32 dual-issue Vanilla Core's custom scheduler"),
+                  cl::init(false), cl::Hidden);
+
+/// Create custom single-issue scheduler if HB32Sched is enabled on the command line.
 ScheduleDAGInstrs *llvm::createHB32Scheduler(MachineSchedContext *C) {
   if (HB32Sched) {
     return createSchedLive<HB32Scheduler>(C);
@@ -42,105 +48,172 @@ ScheduleDAGInstrs *llvm::createHB32Scheduler(MachineSchedContext *C) {
   return nullptr;
 }
 
-/// Initialize the scheduler
-                                                                                                                                                                                                                                                                                                                                                         
-void HB32Scheduler::initialize(ScheduleDAGMI *dag) {                                                                                                                                                                                                                                                                                                    
-  GenericScheduler::initialize(dag);                                                                                                                                                                                                                                                                                                                    
-  const TargetSchedModel *SM = DAG->getSchedModel();                                                                                                                                                                                                                                                                                                    
-  for (unsigned i = 0; i < SM->getNumProcResourceKinds(); i++) {                                                                                                                                                                                                                                                                                        
-    StringRef Name = SM->getProcResource(i)->Name;                                                                                                                                                                                                                                                                                                      
-    if (Name == "HB32IntSlot") IntSlotIdx = i;                                                                                                                                                                                                                                                                                                          
-    else if (Name == "HB32FPSlot") FPSlotIdx = i;                                                                                                                                                                                                                                                                                                       
-  }                                                                                                                                                                                                                                                                                                                                                     
-}  
+/// Create custom dual-issue scheduler if HB32DualSched is enabled on the command line.
+ScheduleDAGInstrs *llvm::createHB32DualScheduler(MachineSchedContext *C) {
+  if (HB32DualSched) {
+    return createSchedLive<HB32DualScheduler>(C);
+  }
 
-///  Get the slot of the SUnit                                                                                                                                                                                                                                                                                                                                                    
-HB32Scheduler::Slot HB32Scheduler::getSlot(SUnit *SU) const {                                                                                                                                                                                                                                                                                           
-  const MCSchedClassDesc *SC = DAG->getSchedClass(SU);                                                                                                                                                                                                                                                                                                  
-  if (!SC)                                                                                                                                                                                                                                                                                                                                              
-    return None;                                                                                                                                                                                                                                                                                                                                     
-  const TargetSchedModel *SM = DAG->getSchedModel();                                                                                                                                                                                                                                                                                                    
-  for (const MCWriteProcResEntry &PRE :                                                                                                                                                                                                                                                                                                                  
-       make_range(SM->getWriteProcResBegin(SC),                                                                                                                                                                                                                                                                                                         
-                  SM->getWriteProcResEnd(SC))) {                                                                                                                                                                                                                                                                                                        
-    unsigned PIdx = PRE.ProcResourceIdx;                                                                                                                                                                                                                                                                                                                 
-    // Walk up the Super chain to the top-level slot                                                                                                                                                                                                                                                                                                    
-    while (SM->getProcResource(PIdx)->SuperIdx)                                                                                                                                                                                                                                                                                                         
-      PIdx = SM->getProcResource(PIdx)->SuperIdx;                                                                                                                                                                                                                                                                                                       
-    if (PIdx == IntSlotIdx) return Int;                                                                                                                                                                                                                                                                                                                 
-    if (PIdx == FPSlotIdx) return FP;                                                                                                                                                                                                                                                                                                                   
-  }                                                                                                                                                                                                                                                                                                                                                     
-  return None;                                                                                                                                                                                                                                                                                                                                       
-}   
+  // NULL selects default machine scheduler
+  return nullptr;
+}
 
-/// Schedule the SUnit                                                                                                                                                                                                                                                                                                                                                    
-void HB32Scheduler::schedNode(SUnit *SU, bool IsTopNode) {                                                                                                                                                                                                                                                                                              
-  if (IsTopNode && Top.getCurrMOps() == 0)                                                                                                                                                                                                                                                                                                              
-    LastSchedSlot = getSlot(SU);                                                                                                                                                                                                                                                                                                                        
-  GenericScheduler::schedNode(SU, IsTopNode);                                                                                                                                                                                                                                                                                                           
-}                                                                                                                                                                                                                                                                                                                                                       
-    
-/// HB32 Vanilla Core Scheduler
-SUnit *HB32Scheduler::pickNode(bool &IsTopNode) {                                                                                                                                                                                                                                                                                                       
-  if (DAG->top() == DAG->bottom()) {                                                                                                                                                                                                                                                                                                                    
-    assert(Top.Available.empty() && Top.Pending.empty() &&                                                                                                                                                                                                                                                                                              
-           Bot.Available.empty() && Bot.Pending.empty() && "ReadyQ garbage");                                                                                                                                                                                                                                                                           
-    return nullptr;                                                                                                                                                                                                                                                                                                                                     
-  }                                                                                                                                                                                                                                                                                                                                                     
-                                                                                                                                                                                                                                                                                                                                                        
-  SUnit *SU;                                                                                                                                                                                                                                                                                                                                            
-  do {                                                                                                                                                                                                                                                                                                                                                  
-    SU = Top.pickOnlyChoice();                                                                                                                                                                                                                                                                                                                          
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+////////////////////////////////
+// HB32 Single-Issue Scheduler
+////////////////////////////////
+
+/// HB32 single-issue Vanilla Core Scheduler
+SUnit *HB32Scheduler::pickNode(bool &IsTopNode) {
+  if (DAG->top() == DAG->bottom()) {
+    assert(Top.Available.empty() && Top.Pending.empty() &&
+           Bot.Available.empty() && Bot.Pending.empty() && "ReadyQ garbage");
+    return nullptr;
+  }
+
+  SUnit *SU;
+
+  do {
+    SU = Top.pickOnlyChoice();
+
+    // Prioritize loads from address space 1
+    if (!SU) {
+      for (SUnit* SUi : Top.Available) {
+        MachineInstr *MI = SUi->getInstr();
+        ArrayRef<MachineMemOperand*> memops = MI->memoperands();
+        if (MI->mayLoad() &&
+            !memops.empty() && memops[0]->getAddrSpace() == 1) {
+          LLVM_DEBUG(dbgs() << "HB32Scheduler bumping load ("
+                            << SUi->NodeNum << ") " << *MI);
+          SU = SUi;
+          break;
+        }
+      }
+    }
+
+    // Fallback to top-down policy of generic scheduler
+    if (!SU) {
+      CandPolicy NoPolicy;
+      TopCand.reset(NoPolicy);
+      pickNodeFromQueue(Top, NoPolicy, DAG->getTopRPTracker(), TopCand);
+      assert(TopCand.Reason != NoCand && "failed to find a candidate");
+      SU = TopCand.SU;
+    }
+
+    IsTopNode = true;
+  } while (SU->isScheduled);
+
+  if (SU->isTopReady())
+    Top.removeReady(SU);
+  if (SU->isBottomReady())
+    Bot.removeReady(SU);
+
+  LLVM_DEBUG(dbgs() << "Scheduling SU(" << SU->NodeNum << ") "
+                    << *SU->getInstr());
+  return SU;
+}
+
+////////////////////////////////
+// HB32 Dual-Issue Scheduler
+////////////////////////////////
+
+/// Initialize the dual-issue scheduler
+
+void HB32DualScheduler::initialize(ScheduleDAGMI *dag) {
+  GenericScheduler::initialize(dag);
+  const TargetSchedModel *SM = DAG->getSchedModel();
+  for (unsigned i = 0; i < SM->getNumProcResourceKinds(); i++) {
+    StringRef Name = SM->getProcResource(i)->Name;
+    if (Name == "HB32DualIntSlot") IntSlotIdx = i;
+    else if (Name == "HB32DualFPSlot") FPSlotIdx = i;
+  }
+}
+
+///  Get the slot of the SUnit
+HB32DualScheduler::Slot HB32DualScheduler::getSlot(SUnit *SU) const {
+  const MCSchedClassDesc *SC = DAG->getSchedClass(SU);
+  if (!SC)
+    return None;
+  const TargetSchedModel *SM = DAG->getSchedModel();
+  for (const MCWriteProcResEntry &PRE :
+       make_range(SM->getWriteProcResBegin(SC),
+                  SM->getWriteProcResEnd(SC))) {
+    unsigned PIdx = PRE.ProcResourceIdx;
+    // Walk up the Super chain to the top-level slot
+    while (SM->getProcResource(PIdx)->SuperIdx)
+      PIdx = SM->getProcResource(PIdx)->SuperIdx;
+    if (PIdx == IntSlotIdx) return Int;
+    if (PIdx == FPSlotIdx) return FP;
+  }
+  return None;
+}
+
+/// Schedule the SUnit
+void HB32DualScheduler::schedNode(SUnit *SU, bool IsTopNode) {
+  if (IsTopNode && Top.getCurrMOps() == 0)
+    LastSchedSlot = getSlot(SU);
+  GenericScheduler::schedNode(SU, IsTopNode);
+}
+
+/// HB32 dual-issue Vanilla Core Scheduler
+SUnit *HB32DualScheduler::pickNode(bool &IsTopNode) {
+  if (DAG->top() == DAG->bottom()) {
+    assert(Top.Available.empty() && Top.Pending.empty() &&
+           Bot.Available.empty() && Bot.Pending.empty() && "ReadyQ garbage");
+    return nullptr;
+  }
+
+  SUnit *SU;
+  do {
+    SU = Top.pickOnlyChoice();
+
     // When filling the second issue slot, prefer the second slot type (FP or Int).
     // Shwet TODO: This logic fails if we have more than 1 INT slot or FP slot.
-    // However, having more INT slots might be beneficial as INT resource pressure is high.                                                                                                                                                                                                                                                                               
-    if (!SU && Top.getCurrMOps() > 0 && LastSchedSlot != None) {                                                                                                                                                                                                                                                                                     
-      Slot WantSlot = (LastSchedSlot == Int) ? FP : Int;                                                                                                                                                                                                                                                                                                
-      for (SUnit* Cand : Top.Available) {                                                                                                                                                                                                                                                                                                               
-        if (!Cand->isScheduled && getSlot(Cand) == WantSlot) {                                                                                                                                                                                                                                                                                          
-          SU = Cand;                                                                                                                                                                                                                                                                                                                                   
-          LLVM_DEBUG(dbgs() << "HB32Scheduler dual-issue pairing ("                                                                                                                                                                                                                                                                                     
-                            << SU->NodeNum << ") " << SU->getInstr());                                                                                                                                                                                                                                                                                 
-          break;                                                                                                                                                                                                                                                                                                                                        
-        }                                                                                                                                                                                                                                                                                                                                               
-      }                                                                                                                                                                                                                                                                                                                                                 
-    }                                                                                                                                                                                                                                                                                                                                                   
-                                                                                                                                                                                                                                                                                                                                                        
-    // Prioritize loads from address space 1                                                                                                                                                                                                                                                                                                            
-    if (!SU) {                                                                                                                                                                                                                                                                                                                                          
-      for (SUnit* SUi : Top.Available) {                                                                                                                                                                                                                                                                                                                
-        MachineInstr *MI = SUi->getInstr();                                                                                                                                                                                                                                                                                                              
-        ArrayRef<MachineMemOperand*> memops = MI->memoperands();                                                                                                                                                                                                                                                                                        
-        if (MI->mayLoad() &&                                                                                                                                                                                                                                                                                                                            
-            !memops.empty() && memops[0]->getAddrSpace() == 1) {                                                                                                                                                                                                                                                                                        
-          LLVM_DEBUG(dbgs() << "HB32Scheduler bumping load ("                                                                                                                                                                                                                                                                                           
-                            << SUi->NodeNum << ") " << *MI);                                                                                                                                                                                                                                                                                             
-          SU = SUi;                                                                                                                                                                                                                                                                                                                                    
-          break;                                                                                                                                                                                                                                                                                                                                        
-        }                                                                                                                                                                                                                                                                                                                                               
-      }                                                                                                                                                                                                                                                                                                                                                 
-    }                                                                                                                                                                                                                                                                                                                                                   
-                                                                                                                                                                                                                                                                                                                                                        
-    // Fallback to top-down policy of generic scheduler                                                                                                                                                                                                                                                                                                          
-    if (!SU) {                                                                                                                                                                                                                                                                                                                                          
-      CandPolicy NoPolicy;                                                                                                                                                                                                                                                                                                                              
-      TopCand.reset(NoPolicy);                                                                                                                                                                                                                                                                                                                          
-      pickNodeFromQueue(Top, NoPolicy, DAG->getTopRPTracker(), TopCand);                                                                                                                                                                                                                                                                                
-      assert(TopCand.Reason != NoCand && "failed to find a candidate");                                                                                                                                                                                                                                                                                 
-      SU = TopCand.SU;                                                                                                                                                                                                                                                                                                                                  
-    }                                                                                                                                                                                                                                                                                                                                                   
-                                                                                                                                                                                                                                                                                                                                                        
-    IsTopNode = true;                                                                                                                                                                                                                                                                                                                                   
-  } while (SU->isScheduled);                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                        
-  if (SU->isTopReady())                                                                                                                                                                                                                                                                                                                                 
-    Top.removeReady(SU);                                                                                                                                                                                                                                                                                                                                
-  if (SU->isBottomReady())                                                                                                                                                                                                                                                                                                                              
-    Bot.removeReady(SU);                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                        
-  LLVM_DEBUG(dbgs() << "Scheduling SU(" << SU->NodeNum << ") "                                                                                                                                                                                                                                                                                          
-                    << *SU->getInstr());                                                                                                                                                                                                                                                                                                                
-  return SU;                                                                                                                                                                                                                                                                                                                                            
-} 
+    // However, having more INT slots might be beneficial as INT resource pressure is high.
+    if (!SU && Top.getCurrMOps() > 0 && LastSchedSlot != None) {
+      Slot WantSlot = (LastSchedSlot == Int) ? FP : Int;
+      for (SUnit* Cand : Top.Available) {
+        if (!Cand->isScheduled && getSlot(Cand) == WantSlot) {
+          SU = Cand;
+          LLVM_DEBUG(dbgs() << "HB32DualScheduler dual-issue pairing ("
+                            << SU->NodeNum << ") " << SU->getInstr());
+          break;
+        }
+      }
+    }
 
+    // Prioritize loads from address space 1
+    if (!SU) {
+      for (SUnit* SUi : Top.Available) {
+        MachineInstr *MI = SUi->getInstr();
+        ArrayRef<MachineMemOperand*> memops = MI->memoperands();
+        if (MI->mayLoad() &&
+            !memops.empty() && memops[0]->getAddrSpace() == 1) {
+          LLVM_DEBUG(dbgs() << "HB32DualScheduler bumping load ("
+                            << SUi->NodeNum << ") " << *MI);
+          SU = SUi;
+          break;
+        }
+      }
+    }
+
+    // Fallback to top-down policy of generic scheduler
+    if (!SU) {
+      CandPolicy NoPolicy;
+      TopCand.reset(NoPolicy);
+      pickNodeFromQueue(Top, NoPolicy, DAG->getTopRPTracker(), TopCand);
+      assert(TopCand.Reason != NoCand && "failed to find a candidate");
+      SU = TopCand.SU;
+    }
+
+    IsTopNode = true;
+  } while (SU->isScheduled);
+
+  if (SU->isTopReady())
+    Top.removeReady(SU);
+  if (SU->isBottomReady())
+    Bot.removeReady(SU);
+
+  LLVM_DEBUG(dbgs() << "Scheduling SU(" << SU->NodeNum << ") "
+                    << *SU->getInstr());
+  return SU;
+}

@@ -904,9 +904,14 @@ def AINEKKO_ERBIUM : RISCVProcessorModel<"an-erbium",
                                           FeatureStdExtC,
                                           FeatureVendorXAIFET]>;
 
-def HB32: RISCVProcessorModel<"hb-rv32", HB32Model, [Feature32Bit,                                                                                                                                                                                                                                                                            
-                                  FeatureStdExtI,                                                                                                                                                                                                                                                                          
-                                  FeatureStdExtM,                                                                                                                                                                                                                                                                          
+def HB32: RISCVProcessorModel<"hb-rv32", HB32Model, [Feature32Bit,
+                                  FeatureStdExtI,
+                                  FeatureStdExtM,
+                                  FeatureStdExtF]>;
+
+def HB32Dual: RISCVProcessorModel<"hb-rv32-dual", HB32DualModel, [Feature32Bit,
+                                  FeatureStdExtI,
+                                  FeatureStdExtM,
                                   FeatureStdExtF]>;
 
 // clang-format on

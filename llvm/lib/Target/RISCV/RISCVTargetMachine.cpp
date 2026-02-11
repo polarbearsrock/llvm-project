@@ -289,8 +289,13 @@ RISCVTargetMachine::createMachineScheduler(MachineSchedContext *C) const {
   const RISCVSubtarget &ST = C->MF->getSubtarget<RISCVSubtarget>();
 
   // Use HB32 scheduler for HammerBlade Vanilla Subtarget.
-  if (ST.getCPU() == "hb-rv32") {                                                                                                                                                                                                                                                                        
-    return createHB32Scheduler(C);                                                                                                                                                                                                                                                                       
+  if (ST.getCPU() == "hb-rv32") {
+    return createHB32Scheduler(C);
+  }
+
+  // Use HB32 dual-issue scheduler for HammerBlade dual-issue Vanilla Subtarget.
+  if (ST.getCPU() == "hb-rv32-dual") {
+    return createHB32DualScheduler(C);
   }   
 
   ScheduleDAGMILive *DAG = createSchedLive<RISCVPreRAMachineSchedStrategy>(C);

@@ -285,7 +285,7 @@ void RISCVSubtarget::adjustSchedDependency (SUnit *Def, int DefOpIdx,
   if (!Def->isInstr())
     return;
 
-  if (getCPU() == "hb-rv32") {
+  if (getCPU() == "hb-rv32" || getCPU() == "hb-rv32-dual") {
     // For HammerBlade Vanilla Subtarget, remote addresses are assigned
     // address space 1. Here, we conditionally ajdust the latency of loads
     // to remote addresses by looking at address space of memory operands.
