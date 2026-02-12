@@ -31,7 +31,7 @@ def HB32DualModel : SchedMachineModel {
 
 let BufferSize = 0 in {
 def HB32DualUnitALU        : ProcResource<1> { let Super = HB32DualIntSlot; } // Int ALU
-def HB32DualUnitIMul       : ProcResource<1> { let Super = HB32DualIntSlot; } // Int Multiply
+def HB32DualUnitIMul       : ProcResource<1> { let Super = HB32DualFPSlot; } // Int Multiply
 def HB32DualUnitMem        : ProcResource<1> { let Super = HB32DualIntSlot; } // Load/Store
 def HB32DualUnitB          : ProcResource<1> { let Super = HB32DualIntSlot; } // Branch
 
