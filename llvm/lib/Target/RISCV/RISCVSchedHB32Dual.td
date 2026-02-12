@@ -49,9 +49,13 @@ def HB32DualUnitFPDivSqrt  : ProcResource<1> { let Super = HB32DualFPSlot; } // 
 
 let SchedModel = HB32DualModel in {
 
+// Branches must end the issue group as the instruction after a conditional branch
+// cannot be paired.
+let EndGroup = 1 in {
 def : WriteRes<WriteJmp, [HB32DualUnitB]>;
 def : WriteRes<WriteJal, [HB32DualUnitB]>;
 def : WriteRes<WriteJalr, [HB32DualUnitB]>;
+}
 
 // ALU Ops.
 
