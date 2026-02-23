@@ -292,7 +292,7 @@ void RISCVSubtarget::adjustSchedDependency (SUnit *Def, int DefOpIdx,
     ArrayRef<MachineMemOperand*> memops = SrcInst->memoperands();
     if (SrcInst->mayLoad() &&
       !memops.empty() && memops[0]->getAddrSpace() == 1) {
-      Dep.setLatency(20);
+      Dep.setLatency(32);
     }
   }
 }

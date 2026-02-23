@@ -73,13 +73,13 @@ def : WriteRes<WriteIMul, [HB32DualUnitIMul]> {
 
 // 32-bit divides take 32+ cycles, TODO(Emily): we maybe want to determine worst case
 def : WriteRes<WriteIDiv, [HB32DualUnitIDiv]> {
-  let Latency = 32;
-  let ReleaseAtCycles = [32];
+  let Latency = 33;
+  let ReleaseAtCycles = [33];
 }
 
 def : WriteRes<WriteIRem, [HB32DualUnitIDiv]> {
-  let Latency = 32;
-  let ReleaseAtCycles = [32];
+  let Latency = 33;
+  let ReleaseAtCycles = [33];
 }
 
 // Memory
@@ -115,7 +115,7 @@ let Latency = 3 in {
   def : WriteRes<WriteFMinMax32, [HB32DualUnitFPALU]>;
 }
 
-let Latency = 2 in {
+let Latency = 1 in {
   def : WriteRes<WriteFCvtF32ToI32, [HB32DualUnitFPALU]>;
   def : WriteRes<WriteFClass32, [HB32DualUnitFPALU]>;
   def : WriteRes<WriteFCmp32, [HB32DualUnitFPALU]>;
@@ -134,13 +134,13 @@ let Latency = 3 in {
 
 // TODO(Shwet): Verify.
 def : WriteRes<WriteFDiv32, [HB32DualUnitFPDivSqrt]> {
-  let Latency = 32;
-  let ReleaseAtCycles = [32];
+  let Latency = 25;
+  let ReleaseAtCycles = [25];
 }
 
 def : WriteRes<WriteFSqrt32, [HB32DualUnitFPDivSqrt]> {
-  let Latency = 32;
-  let ReleaseAtCycles = [32];
+  let Latency = 25;
+  let ReleaseAtCycles = [25];
 }
 
 def : WriteRes<WriteNop, []>;
