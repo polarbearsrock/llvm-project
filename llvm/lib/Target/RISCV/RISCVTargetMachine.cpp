@@ -105,6 +105,10 @@ static cl::opt<bool>
                            cl::desc("Enable Machine Pipeliner for RISC-V"),
                            cl::init(false), cl::Hidden);
 
+static bool useDefaultMachinePipelinerForCPU(StringRef CPU) {
+  return CPU == "hb-rv32-dual";
+}
+
 static cl::opt<bool> EnableCFIInstrInserter(
     "riscv-enable-cfi-instr-inserter",
     cl::desc("Enable CFI Instruction Inserter for RISC-V"), cl::init(false),
@@ -632,7 +636,13 @@ void RISCVPassConfig::addPreRegAlloc() {
   addPass(createRISCVInsertWriteVXRMPass());
   addPass(createRISCVLandingPadSetupPass());
 
-  if (TM->getOptLevel() != CodeGenOptLevel::None && EnableMachinePipeliner)
+  bool RunMachinePipeliner = EnableMachinePipeliner;
+  if (EnableMachinePipeliner.getNumOccurrences() == 0) {
+    RunMachinePipeliner = useDefaultMachinePipelinerForCPU(
+        getRISCVTargetMachine().getTargetCPU());
+  }
+
+  if (TM->getOptLevel() != CodeGenOptLevel::None && RunMachinePipeliner)
     addPass(&MachinePipelinerID);
 
   addPass(createRISCVVMV0EliminationPass());

@@ -914,6 +914,7 @@ def HB32Dual: RISCVProcessorModel<"hb-rv32-dual", HB32DualModel, [Feature32Bit,
                                   FeatureStdExtI,
                                   FeatureStdExtM,
                                   FeatureStdExtA,
-                                  FeatureStdExtF]>;
+                                  FeatureStdExtF,
+                                  TunePostRAScheduler]>;
 
 // clang-format on
