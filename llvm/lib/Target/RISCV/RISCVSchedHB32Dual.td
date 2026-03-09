@@ -93,7 +93,7 @@ def : WriteRes<WriteCSR, [HB32DualUnitALU]>;
 }
 
 let Latency = 3 in {
-  def : WriteRes<WriteFMovI32ToF32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFMovI32ToF32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
   def : WriteRes<WriteFLD32, [HB32DualUnitMem]>;
 }
 
@@ -116,14 +116,14 @@ let Latency = 3 in {
 }
 
 let Latency = 1 in {
-  def : WriteRes<WriteFCvtF32ToI32, [HB32DualUnitFPALU]>;
-  def : WriteRes<WriteFClass32, [HB32DualUnitFPALU]>;
-  def : WriteRes<WriteFCmp32, [HB32DualUnitFPALU]>;
-  def : WriteRes<WriteFMovF32ToI32, [HB32DualUnitFPALU]>;
+  def : WriteRes<WriteFCvtF32ToI32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
+  def : WriteRes<WriteFClass32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
+  def : WriteRes<WriteFCmp32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
+  def : WriteRes<WriteFMovF32ToI32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
 }
 
 let Latency = 3 in {
-def : WriteRes<WriteFCvtI32ToF32, [HB32DualUnitFPALU]>;
+def : WriteRes<WriteFCvtI32ToF32, [HB32DualUnitFPALU, HB32DualUnitALU]>;
 }
 
 //FPU takes 4 cycles (TODO: confirm this)
