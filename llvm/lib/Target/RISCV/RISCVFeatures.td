@@ -1892,6 +1892,10 @@ def TuneNoDefaultUnroll
     : SubtargetFeature<"no-default-unroll", "EnableDefaultUnroll", "false",
                        "Disable default unroll preference.">;
 
+def TuneNoMulHigh
+    : SubtargetFeature<"no-mul-high", "EnableMulHigh", "false",
+                       "Disable high multiply instructions (mulh, mulhsu, mulhu).">;
+
 // Many Microarchitectures are able to fuse a branch over a single instruction
 // with the branched-over instruction. We call this fusion "short forward
 // branches".

@@ -372,6 +372,9 @@ RISCVTargetLowering::RISCVTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::MUL, MVT::i64, Custom);
   }
 
+  if (Subtarget.hasStdExtZmmul() && !Subtarget.enableMulHigh())
+    setOperationAction({ISD::MULHS, ISD::MULHU}, XLenVT, Expand);
+
   if (!Subtarget.hasStdExtM()) {
     setOperationAction({ISD::SDIV, ISD::UDIV, ISD::SREM, ISD::UREM}, XLenVT,
                        Expand);
@@ -15040,6 +15043,8 @@ void RISCVTargetLowering::ReplaceNodeResults(SDNode *N,
     // This multiply needs to be expanded, try to use MULHSU+MUL if possible.
     if (Size > XLen) {
       assert(Size == (XLen * 2) && "Unexpected custom legalisation");
+      if (!Subtarget.enableMulHigh())
+        return; // Fall through to default expansion (__muldi3)
       SDValue LHS = N->getOperand(0);
       SDValue RHS = N->getOperand(1);
       APInt HighMask = APInt::getHighBitsSet(Size, XLen);
